@@ -19,6 +19,8 @@
 /*                    - for Christmas                                */
 /*===================================================================*/
 
+#define STANDALONE 1
+
 /*-------------------------------------------------------------------*/
 /*  Include files                                                    */
 /*-------------------------------------------------------------------*/
@@ -32,7 +34,9 @@
 #include "pNesX_System.h"
 #include "pNesX_System_DC.h"
 #include "profile.h"
-#include "vmu_icons.h"
+#include "vmu_bitmap.h"
+
+#if !STANDALONE
 #include "GUI_MainMenu.h"
 #include "GUI_FileBrowser.h"
 #include "GUI_Credits.h"
@@ -41,6 +45,9 @@
 #include "GUI_SystemPage.h"
 #include "GUI_ControlPage.h"
 #include "GUI_GUIPage.h"
+#endif
+
+#include "settings.h"
 
 #include "K6502.h"
 
@@ -53,7 +60,10 @@ bool log_enabled_latch;
 /*-------------------------------------------------------------------*/
 /*  Interface variables                                              */
 /*-------------------------------------------------------------------*/
+#if !STANDALONE
 int menuscreen;
+#endif
+
 int invalida;
 int keyhit;
 int xkeyhit;
@@ -97,12 +107,12 @@ const int Max_Frameskip = 5;
 
 const uint16 default_Sound = 1;
 const uint16 default_FrameSkip = 0;
-const bool default_Analog = false;
-const uint8 default_Select = DC_CONTROLLER_BUTTON_LTRIG;
+const bool default_Analog = true;
+const uint8 default_Select = DC_CONTROLLER_BUTTON_Y;
 const uint8 default_AKey = DC_CONTROLLER_BUTTON_A;
 const uint8 default_BKey = DC_CONTROLLER_BUTTON_X;
 const uint16 default_Stretch = 1;
-const uint16 default_Filter = 1;
+const uint16 default_Filter = 0;
 const uint16 default_Profile = 1;
 const uint16 default_VMUPort = 0;
 const uint16 default_SRAM = 1;
@@ -113,7 +123,9 @@ const uint8 default_Clip_Right = 0;
 const uint8 default_Clip_Top = 8;
 const uint8 default_Clip_Bottom = 8;
 
+#if !STANDALONE
 Font* font;
+#endif
 
 //The crc32 of the currently selected rom
 uint32 currentCRC32;
@@ -130,9 +142,9 @@ bool AutoROM;
 /*-------------------------------------------------------------------*/
 /*  Palette                                                          */
 /*-------------------------------------------------------------------*/
-uint16* NesPalette;
+uint16 * NesPalette;
 
-const uint16 DEFAULT_NES_PALETTE[] = {
+uint16 DEFAULT_NES_PALETTE[] = {
 	0x630C, 0x016F, 0x10B3, 0x3013, 0x500F, 0x6008, 0x6020, 0x50E0,
 	0x3180, 0x1220, 0x0260, 0x0260, 0x0208, 0x0000, 0x0000, 0x0000,
 	0xAD55, 0x1319, 0x3A1F, 0x695F, 0x98F9, 0xB0F0, 0xB165, 0x9A40,
@@ -153,6 +165,10 @@ maple_device_t* Controllers[4];
 //VMUs - will store VMU addresses -- NULL if not found
 uint32 numVMUs;
 maple_device_t* VMUs[8];
+
+//LCDs - will store LCD device addresses == NULL if not found
+uint32 numLCDs;
+maple_device_t* LCDs[8];
 
 /*-------------------------------------------------------------------*/
 /*  Recording mode                                                   */
@@ -196,19 +212,11 @@ void calculateOutputScreenGeometry() {
 		polygon_x2 = 576.0f - (float)(opt_ClipVars[1] * 2);
 		polygon_y1 = 0.0f + (float)(opt_ClipVars[2] * 2);
 		polygon_y2 = 480.0f - (float)(opt_ClipVars[3] * 2);
-	}	
+	}
 }
 
 void initialize_controllers() {
 	printf("initialize_controllers: start scan\n");
-	numControllers = 0;
-	for (int i = 0; i < 4; i++) {
-		maple_device_t* controller = maple_enum_type(i, MAPLE_FUNC_CONTROLLER);
-		if (controller != NULL) {
-			Controllers[i] = controller;
-			numControllers++;
-		}
-	}
 
 	numVMUs = 0;
 	for (int i = 0; i < 8; i++) {
@@ -236,6 +244,7 @@ void draw_screen() {
 	pvr_list_begin(PVR_LIST_OP_POLY);
 	pvr_poly_cxt_col(&my_cxt, PVR_LIST_OP_POLY);
 
+#if !STANDALONE
 	if (menuscreen != MENUNUM_AUTOROM) {
 		pvr_poly_compile(&my_pheader, &my_cxt);
 		pvr_prim(&my_pheader, sizeof(my_pheader));
@@ -264,11 +273,13 @@ void draw_screen() {
 		win_draw_textwindow(&helpdata, &helpstyle, PVR_LIST_OP_POLY);
 		pvr_list_finish();
 	}
+#endif
 
 	// STEP 2: Draw the UI as two translucent textures over top of that previous texture
 	//printf("draw_screen: drawing main window\n");
 	pvr_list_begin(PVR_LIST_TR_POLY);
 
+#if !STANDALONE
 	if (menuscreen != MENUNUM_AUTOROM) {
 		draw_string(font, PVR_LIST_TR_POLY, APP_STRING, 32.0f, 32.0f, 30.0f, 200.0f, 50.0f, SINGLE, LEFT, 0xFF000000, 1.0f);
 		font -> scale = 0.50f;
@@ -278,11 +289,14 @@ void draw_screen() {
 		win_draw_textwindow(&mydata, &mystyle, PVR_LIST_TR_POLY);
 		win_draw_textwindow(&helpdata, &helpstyle, PVR_LIST_TR_POLY);
 	}
+#endif
 
 	pvr_list_finish();
 	//printf("draw_screen: finishing scene\n");
 	pvr_scene_finish();
 }
+
+#if !STANDALONE
 
 int LoadSRAM() {
 	int loadSRAM_success = -1;
@@ -292,7 +306,6 @@ int LoadSRAM() {
 			maple_device_t* vmu = maple_enum_type(i, MAPLE_FUNC_MEMCARD);
 			if (vmu == NULL)
 				break;
-			draw_VMU_icon(vmu, vmu_screen_loading);
 
 			char sramFilename[13];
 			snprintf(sramFilename, 13, "%08lx", currentCRC32);
@@ -310,17 +323,14 @@ int LoadSRAM() {
 						printf("VMU: bz2 decompress error [%i]\n", result);
 					}
 					loadSRAM_success = 1;				
-					draw_VMU_icon(vmu, vmu_screen_normal);
 				} else {
 					printf("VMU: Package failed CRC check\n");
-					draw_VMU_icon(vmu, vmu_screen_error);
 				}
 
 				free(readBuffer);
 				break;
 			} else {
 				printf("VMU: Unable to load SRAM Save File from VMU [%i]\n", i);
-				draw_VMU_icon(vmu, vmu_screen_error);
 			}
 		}
 	}
@@ -335,7 +345,6 @@ int SaveSRAM() {
 			maple_device_t* vmu = maple_enum_type(i, MAPLE_FUNC_MEMCARD);
 			if (vmu == NULL)
 				break;
-			draw_VMU_icon(vmu, vmu_screen_saving);
 
 			printf("VMU: Generating filename\n");
 			char sramFilename[13];
@@ -348,7 +357,6 @@ int SaveSRAM() {
 
 			if (result != BZ_OK) {
 				printf("VMU: bz2 Compression Failed [%i]\n", result);
-				draw_VMU_icon(vmu, vmu_screen_error);
 				break;
 			} else {
 				printf("VMU: bz2 Compression Succeeded [%i bytes]\n", compressedLength);
@@ -401,11 +409,9 @@ int SaveSRAM() {
 				if (vmufs_write(vmu, sramFilename, packageBuffer, packageBufferLength, VMUFS_OVERWRITE) == 0) {
 					printf("VMU: Saved SRAM Save File to VMU [%i]\n", i);
 					saveSRAM_success = 1;
-					draw_VMU_icon(vmu, vmu_screen_normal);
 					break;
 				} else {
 					printf("VMU: Unable to save SRAM Save File to VMU [%i]\n", i);
-					draw_VMU_icon(vmu, vmu_screen_error);				
 				}
 
 				free(packageBuffer);
@@ -451,6 +457,8 @@ void Load_VMU_Options()
 	}
 	*/
 }
+
+#endif // STANDALONE
 
 pvr_init_params_t pvr_params =  {
     /* Enable opaque and translucent polygons with size 16 */
@@ -532,7 +540,7 @@ void initVQTextures() {
 bool checkForAutoROM() {
 	bool autoromPresent = false;
 	memset(szRomPath, 0, 256);
-	file_t autoromFileHandle = fs_open("/rd/autorom.txt", O_RDONLY);
+	file_t autoromFileHandle = fs_open("/cd/autorom.txt", O_RDONLY);
 	if (autoromFileHandle != -1) {
 		printf("AutoROM: autorom.txt found\n");
 		if (fs_read(autoromFileHandle, szRomPath, 256) > 0) {
@@ -551,6 +559,8 @@ bool checkForAutoROM() {
 					printf("AutoROM: detected size [%lu]\n", fileStat.st_size);
 					RomSize = fileStat.st_size;
 					autoromPresent = true;
+				} else {
+					printf("AutoROM: Unable to detect size of file\n");
 				}
 				fs_close(romFileHandle);
 			} else {
@@ -569,13 +579,13 @@ void launchEmulator() {
 	numEmulationFrames = 0;
 
 	if (pNesX_Load(szRomPath, RomSize) == 0) {
+
+#if !STANDALONE
 		//Load Its SaveRAM
 		if (SRAM_Enabled) {
 			LoadSRAM();
 		}
 
-		memset(inputActive, 0, sizeof(bool) * 8);
-		memset(inputs, 0, sizeof(InputFrame_t) * 8);
 		switch(recordingMode) {
 			case RECORDING_MODE_DISABLED:
 				printf("launchEmulator: Input Recording Disabled\n");
@@ -588,6 +598,10 @@ void launchEmulator() {
 				loadRecording();
 				break;
 		}
+#endif
+
+		memset(inputActive, 0, sizeof(bool) * 8);
+		memset(inputs, 0, sizeof(InputFrame_t) * 8);
 
 		//Stay in Emulator During Operation
 		pNesX_Main();
@@ -606,10 +620,12 @@ void launchEmulator() {
 			VRAM = NULL;
 		}
 
+#if !STANDALONE
 		//Save Its SaveRAM
 		if (SRAM_Enabled) {
 			SaveSRAM();
 		}
+#endif
 
 		if (recordingMode == RECORDING_MODE_ENABLED) {
 			printf("Uploading Recording\n");
@@ -635,13 +651,15 @@ int main() {
 	printf("Initializing PVR\n");
 	pvr_setup();
 
+#if !STANDALONE
 	//Load Fonts
 	printf("Initializing Fonts\n");
 	font = load_font("/rd/neuro.fnt");
+#endif
 
 	// Load palette
 	printf("Initializing NES Palette\n");
-	loadPalette("/rd/nes.pal");
+	loadPalette("/cd/nes.pal");
 
 	printf("Initializing VQ Textures\n");
 	initVQTextures();
@@ -681,54 +699,35 @@ int main() {
 	opt_ShowFrameRate = default_ShowFrameRate;
 	opt_SRAM = default_SRAM;
 
-	printf("Initializing VMUs\n");
-	for (uint8 i = 0; i < numVMUs; i++) {
-		draw_VMU_icon(VMUs[i], vmu_screen_normal);
+	printf("Loading VMU icon\n");
+	if (load_vmu_lcd_bitmap("/cd/vmu_image.bmp") == -1) {
+		printf("Unable to load VMU bitmap icon\n");
+		return 1;
 	}
 
-	//If the default Memory card is present
-	/*
-	if (VMUs[default_VMUPort] != 0)
-	{
-		*opt_VMUPort = default_VMUPort;
-		//Try to load settings if possible
-		vmu_icon_draw(vmu_screen_loading, VMUs[*opt_VMUPort]);
-		load_user_settings(VMUs[*opt_VMUPort]);
-		vmu_icon_draw(vmu_screen_normal, VMUs[*opt_VMUPort]);
-	}
-	else
-	//Otherwise Search for a Memcard
-	{
-		//Choose the first one available
-		for (i = 0; i < 8; i++)
-		{
-			if (VMUs[i] != 0)
-			{
-				*opt_VMUPort = i;
-				//Try to load settings if possible
-				vmu_icon_draw(vmu_screen_loading, VMUs[*opt_VMUPort]);
-				load_user_settings(VMUs[*opt_VMUPort]);
-				vmu_icon_draw(vmu_screen_normal, VMUs[*opt_VMUPort]);
-				break;
-			}
-			else
-				//If one wasn't found, turn off memcard support
-				*opt_VMUPort = -1;
-		}
-	}
-	*/
+	draw_vmu_bitmap_all_devices();
 
 	printf("Checking for autoROM\n");
 	AutoROM = checkForAutoROM();
-	if (AutoROM) {
-		menuscreen = MENUNUM_AUTOROM;
-	} else {
-		menuscreen = MENUNUM_MAIN;
+
+#if STANDALONE
+
+	if (AutoROM == false) {
+		fprintf(stderr, "FATAL ERROR: No autorom.txt file present in romdisk. This is required for standalone mode.");
+		return 1;
 	}
 
+	launchEmulator();
 
+#else
+	menuscreen = MENUNUM_MAIN;
 	printf("Setting up main menu\n");
 	setup_main_menu_screen();
+
+	if (AutoROM) {
+		launchEmulator();
+		AutoROM = false;
+	}
 
 	keyhit = 0;
 
@@ -804,13 +803,9 @@ int main() {
 		}
 
 		draw_screen();
-
-		if (AutoROM) {
-			launchEmulator();
-			AutoROM = false;
-			menuscreen = MENUNUM_MAIN;		
-		}		
 	}
+
+	#endif // STANDALONE
 
 	printf("main loop: exiting\n");
 
@@ -818,7 +813,10 @@ int main() {
 		free(NesPalette);
 	}
 
+#if !STANDALONE
 	destroy_font(font);
+#endif
+
 	return 0;
 }
 
@@ -980,6 +978,7 @@ void pNesX_LoadFrame() {
 
 	pvr_list_finish();
 
+#if !STANDALONE
 	if (opt_ShowFrameRate) {
 		pvr_list_begin(PVR_LIST_TR_POLY);
 
@@ -1004,7 +1003,8 @@ void pNesX_LoadFrame() {
 		);
 
 		pvr_list_finish();
-	}		
+	}
+#endif
 
 	pvr_scene_finish();
 	endProfiling(3);
@@ -1143,18 +1143,23 @@ void handleController(cont_state_t* state, uint32* bitflags, uint8 controllerInd
 		handleButton(bitflags, CONTROLLER_BUTTON_DOWN, controllerIndex, state, MODE_ANALOG_Y_DOWN, 0);
 		handleButton(bitflags, CONTROLLER_BUTTON_LEFT, controllerIndex, state, MODE_ANALOG_X_LEFT, 0);
 		handleButton(bitflags, CONTROLLER_BUTTON_RIGHT, controllerIndex, state, MODE_ANALOG_X_RIGHT, 0);
-	} else {
-		handleButton(bitflags, CONTROLLER_BUTTON_UP, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_UP);
-		handleButton(bitflags, CONTROLLER_BUTTON_DOWN, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_DOWN);
-		handleButton(bitflags, CONTROLLER_BUTTON_LEFT, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_LEFT);
-		handleButton(bitflags, CONTROLLER_BUTTON_RIGHT, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_RIGHT);
 	}
+
+	handleButton(bitflags, CONTROLLER_BUTTON_UP, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_UP);
+	handleButton(bitflags, CONTROLLER_BUTTON_DOWN, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_DOWN);
+	handleButton(bitflags, CONTROLLER_BUTTON_LEFT, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_LEFT);
+	handleButton(bitflags, CONTROLLER_BUTTON_RIGHT, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_RIGHT);
+
+	// HACK(ross): For Storied Sword, remap Y to UP + B for secondary weapon:
+	// handleButton(bitflags, CONTROLLER_BUTTON_UP, controllerIndex, state, MODE_BUTTONS, CONT_Y);
+	// handleButton(bitflags, CONTROLLER_BUTTON_B, controllerIndex, state, MODE_BUTTONS, CONT_Y);
 }
 
 void pNesX_PadState(uint32 *pdwPad1, uint32 *pdwPad2, uint32* ExitCount) {	
 	maple_device_t* my_controller;
 	cont_state_t* my_state = NULL;
 
+#if !STANDALONE
 	if (recordingMode == RECORDING_MODE_PLAYBACK) {
 		if (!playbackRecording(pdwPad1)) {
 			(*ExitCount)++;
@@ -1168,9 +1173,64 @@ void pNesX_PadState(uint32 *pdwPad1, uint32 *pdwPad2, uint32* ExitCount) {
 				*ExitCount = MAX_EXIT_COUNT + 1;
 			}
 		}
-	} else {
+	}
+	else
+#endif
+	{
 		//Grab data from controller 0
-		*pdwPad1 = 0;		
+		*pdwPad1 = 0;
+
+		// Scan controllers:
+		numControllers = 0;
+		for (int i = 0; i < 4; i++) {
+			maple_device_t * controller = maple_enum_type(i, MAPLE_FUNC_CONTROLLER);
+
+			if (Controllers[i] != controller) {
+				Controllers[i] = controller;
+				printf("Controller %d %splugged\n", i, controller == NULL ? "un" : "");
+			}
+
+			if (controller != NULL) {
+				numControllers++;
+			}
+		}
+
+		// Scan VMUs:
+		numVMUs = 0;
+		for (int i = 0; i < 8; i++) {
+			maple_device_t * vmu = maple_enum_type(i, MAPLE_FUNC_MEMCARD);
+
+			if (VMUs[i] != vmu) {
+				VMUs[i] = vmu;
+				printf("VMU %d %splugged\n", i, vmu == NULL ? "un" : "");
+			}
+
+			if (vmu != NULL) {
+				numVMUs++;
+			}
+		}
+
+		// Scan LCDs:
+		bool lcd_changed = 0;
+		numLCDs = 0;
+		for (int i = 0; i < 8; i++) {
+			maple_device_t * lcd = maple_enum_type(i, MAPLE_FUNC_LCD);
+
+			if (LCDs[i] != lcd) {
+				LCDs[i] = lcd;
+				printf("LCD %d %splugged\n", i, lcd == NULL ? "un" : "");
+				lcd_changed = true;
+			}
+
+			if (lcd != NULL) {
+				numLCDs++;
+			}
+		}
+
+		if (lcd_changed) {
+			draw_vmu_bitmap_all_devices();
+		}
+
 		if (numControllers > 0) {
 			my_controller = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
 			if (my_controller != NULL) {
@@ -1187,6 +1247,7 @@ void pNesX_PadState(uint32 *pdwPad1, uint32 *pdwPad2, uint32* ExitCount) {
 				handleController(my_state, pdwPad1, 0);
 			}
 
+#if !STANDALONE
 			// Increment Exit Counter if Required
 			if ((my_state != NULL) && (numControllers > 0)) {
 				if ((my_state -> rtrig > 200) && (my_state -> ltrig != 0)) {
@@ -1194,7 +1255,8 @@ void pNesX_PadState(uint32 *pdwPad1, uint32 *pdwPad2, uint32* ExitCount) {
 				} else {
 					*ExitCount = 0;
 				}
-			}				
+			}
+#endif
 		}
 
 		if (numControllers > 1) {
@@ -1226,24 +1288,6 @@ void pNesX_PadState(uint32 *pdwPad1, uint32 *pdwPad2, uint32* ExitCount) {
 			}
 		}
 	}
-}
-
-// this routine came from the ghettoplay example that comes 
-// with libdream
-int draw_VMU_icon(maple_device_t* vmu, char* icon) {
-	uint8 bitmap[48*32/8] = {0};
-	int x, y, xi, xb;
-
-	for (y=0; y<32; y++) {
-		for (x=0; x<48; x++) {
-			xi = x / 8;
-			xb = 0x80 >> (x % 8);
-			if (icon[(31-y)*48+(47-x)] == '+')
-				bitmap[y*(48/8)+xi] |= xb;
-		}
-	}
-	
-	return vmu_draw_lcd(vmu, bitmap);
 }
 
 #ifdef DEBUG

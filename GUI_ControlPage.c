@@ -11,6 +11,7 @@
 #include "macros.h"
 
 #include "pNesX_System_DC.h"
+#include "settings.h"
 
 char Player_1_Option_A_Buffer[50];
 char Player_1_Option_B_Buffer[50];
@@ -47,8 +48,6 @@ const char Options_LTrig[] = "Left Trigger";
 
 char* Control_Options[20];
 const int Num_Control_Options = 20;
-
-ControllerSettings_t controllerSettings[4];
 
 const char* ButtonOptions[5] = {
 	Options_A,

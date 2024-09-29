@@ -11,10 +11,7 @@
 #include "macros.h"
 
 #include "pNesX_System_DC.h"
-
-uint16 opt_Stretch;
-uint16 opt_Filter;
-uint8 opt_ClipVars[4];
+#include "settings.h"
 
 char ClipLX_Buffer[50];
 char ClipRX_Buffer[50];
