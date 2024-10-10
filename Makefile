@@ -11,6 +11,7 @@ DREAMCAST_IP = 192.168.1.80
 PC_FS_ROOT = ../dreamcast-video-playback/data/dist/ISOFS/
 
 SRCS = \
+	cartridge.c \
 	nes_apu.c \
 	nes_exsound.c \
 	aica_fw.c \

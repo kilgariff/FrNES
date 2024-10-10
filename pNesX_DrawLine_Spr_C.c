@@ -24,7 +24,8 @@ unsigned char SpritesToDraw[MAX_SPRITES_ON_A_LINE] = {0};
 // Whether we overflowed sprites this scanline
 bool OverflowedSprites = false;
 
-void pNesX_DrawLine_Spr_C(unsigned char* scanline_buffer) {
+__attribute__ ((hot)) void pNesX_DrawLine_Spr_C(unsigned char* scanline_buffer) {
+	startProfiling(3);
 	unsigned char spriteBuffer[256];
 
 	int nX;
@@ -47,15 +48,15 @@ void pNesX_DrawLine_Spr_C(unsigned char* scanline_buffer) {
 	// Reset buffers and counts on scanline 0
 	if (ppuinfo.PPU_Scanline == 0) {
 		NumSpritesToDrawNextScanline = 0;
-		memset(SpritesToDrawNextScanline, 0, 8);
+		memset4(SpritesToDrawNextScanline, 0, 8);
 		NumSpritesToDraw = 0;
-		memset(SpritesToDraw, 0, 8);
+		memset4(SpritesToDraw, 0, 8);
 		OverflowSpritesOnNextScanline = false;
 		OverflowedSprites = false;
 	} else {
 	// Otherwise move the SpritesToDrawNextScanline to this scanline
 		NumSpritesToDraw = NumSpritesToDrawNextScanline;
-		memcpy(SpritesToDraw, SpritesToDrawNextScanline, 8);
+		memcpy4(SpritesToDraw, SpritesToDrawNextScanline, 8);
 		NumSpritesToDrawNextScanline = 0;
 
 		// More than 8 sprites were requested to be drawn on this scanline, so set the PPU flag for overflow
@@ -73,6 +74,7 @@ void pNesX_DrawLine_Spr_C(unsigned char* scanline_buffer) {
 	// Calculate the sprites to draw on the next scanline
 	pSPRRAM = SPRRAM;
 	for ( unsigned char spriteIndex = 0; spriteIndex < 64; spriteIndex++) {
+
 		nY = pSPRRAM[ SPR_Y ];
 
 		if (!((nY > ppuinfo.PPU_Scanline) || ((nY + ppuinfo.PPU_SP_Height) <= ppuinfo.PPU_Scanline))) {
@@ -179,4 +181,5 @@ void pNesX_DrawLine_Spr_C(unsigned char* scanline_buffer) {
 			}
 		}		
 	}
+	endProfiling(3);	
 }
