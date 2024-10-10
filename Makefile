@@ -11,6 +11,7 @@ DREAMCAST_IP = 192.168.1.80
 PC_FS_ROOT = ../dreamcast-video-playback/data/dist/ISOFS/
 
 SRCS = \
+	options.c \
 	cartridge.c \
 	nes_apu.c \
 	nes_exsound.c \
@@ -48,6 +49,7 @@ SRCS = \
 	Mapper_25.c \
 	Mapper_26.c \
 	Mapper_30.c \
+	Mapper_34.c \
 	Mapper_64.c \
 	Mapper_66.c \
 	Mapper_67.c \
@@ -65,8 +67,7 @@ SRCS = \
 	ROMLoad.c \
 	TextWindow.c \
 	profile.c \
-	vmu_bitmap.c \
-	settings.c
+	vmu_bitmap.c
 
 ASMS = 
 OBJS = $(SRCS:.c=.o) $(ASMS:.s=.o) romdisk.o

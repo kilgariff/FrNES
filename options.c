@@ -1,6 +1,5 @@
 #include "options.h"
 #include "pNesX_System_DC.h"
-#include "vmu_icons.h"
 
 #define OPTIONS_FILENAME "FrNES.opt"
 Options_t options;
@@ -28,7 +27,7 @@ bool load_options_from_VMU() {
         if (vmu == NULL) 
             break;
 
-        draw_VMU_icon(vmu, vmu_screen_loading);
+        //draw_VMU_icon(vmu, vmu_screen_loading);
 
         unsigned char* readBuffer;
         int readBufferSize;
@@ -38,18 +37,18 @@ bool load_options_from_VMU() {
                 printf("VMU: Found FrNES Options File from VMU [%i]\n", vmuIndex);
                 printf("Copying %i Bytes into options struct\n", sizeof(Options_t));
                 memcpy(&options, package.data, sizeof(Options_t));
-                draw_VMU_icon(vmu, vmu_screen_normal);
+                // draw_VMU_icon(vmu, vmu_screen_normal);
                 loaded = true;
             } else {
                 printf("VMU: Package failed CRC check\n");
-                draw_VMU_icon(vmu, vmu_screen_error);
+                // draw_VMU_icon(vmu, vmu_screen_error);
             }
 
             free(readBuffer);
             break;
         } else {
             printf("VMU: Unable to load User Options from VMU [%i]\n", vmuIndex);
-            draw_VMU_icon(vmu, vmu_screen_normal);            
+            // draw_VMU_icon(vmu, vmu_screen_normal);            
         }
     }
     return loaded;
@@ -64,7 +63,7 @@ bool save_options_to_VMU() {
         if (vmu == NULL)
             break;
 
-        draw_VMU_icon(vmu, vmu_screen_saving);
+        // draw_VMU_icon(vmu, vmu_screen_saving);
 
         printf("VMU: Generating VMU Package\n");
         vmu_pkg_t package;
@@ -97,10 +96,10 @@ bool save_options_to_VMU() {
             if (vmufs_write(vmu, OPTIONS_FILENAME, packageBuffer, packageBufferLength, VMUFS_OVERWRITE) == 0) {
                 printf("VMU: Saved SRAM Save File to VMU [%i]\n", i);
                 saved = 1;
-                draw_VMU_icon(vmu, vmu_screen_normal);
+                // draw_VMU_icon(vmu, vmu_screen_normal);
             } else {
                 printf("VMU: Unable to save SRAM Save File to VMU [%i]\n", i);
-                draw_VMU_icon(vmu, vmu_screen_error);				
+                // draw_VMU_icon(vmu, vmu_screen_error);				
             }
 
             free(packageBuffer);

@@ -7,6 +7,7 @@
 #include "Mapper.h"
 #include "Mapper_5.h"
 #include "pNesX_System_DC.h"
+#include "profile.h"
 
 #define MAX_SPRITES_ON_A_LINE 8
 

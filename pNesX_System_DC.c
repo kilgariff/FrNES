@@ -22,7 +22,7 @@
 #include <bzlib/bzlib.h>
 
 #define STANDALONE 1
-#define DATA_PATH "/pc/"
+#define DATA_PATH "/cd/"
 
 /*-------------------------------------------------------------------*/
 /*  Include files                                                    */
@@ -49,8 +49,6 @@
 #include "GUI_ControlPage.h"
 #include "GUI_GUIPage.h"
 #endif
-
-#include "settings.h"
 
 #include "K6502.h"
 
@@ -279,8 +277,6 @@ void draw_screen() {
 	pvr_scene_finish();
 }
 
-#if !STANDALONE
-
 int LoadSRAM() {
 	int loadSRAM_success = -1;
 	if (options.opt_SRAM == 1) {
@@ -341,7 +337,7 @@ int SaveSRAM() {
 
 			if (result != BZ_OK) {
 				printf("VMU: bz2 Compression Failed With Error Code [%i]\n", result);
-				draw_VMU_icon(vmu, vmu_screen_error);
+				//draw_VMU_icon(vmu, vmu_screen_error);
 				break;
 			} else {
 				printf("VMU: bz2 Compression Succeeded [%i bytes]\n", compressedLength);
@@ -409,8 +405,6 @@ int SaveSRAM() {
 	free(compressedBuffer);		
 	return saveSRAM_success;
 }
-
-#endif // STANDALONE
 
 pvr_init_params_t pvr_params =  {
     /* Enable opaque and translucent polygons with size 16 */
@@ -595,7 +589,6 @@ void launchEmulator() {
 
 	if (pNesX_Load(szRomPath, RomSize) == 0) {
 
-#if !STANDALONE
 		//Load Its SaveRAM
 		if (SRAM_Enabled) {
 			LoadSRAM();
@@ -613,7 +606,6 @@ void launchEmulator() {
 				loadRecording();
 				break;
 		}
-#endif
 
 		memset(inputActive, 0, sizeof(bool) * 8);
 		memset(inputs, 0, sizeof(InputFrame_t) * 8);
@@ -621,12 +613,10 @@ void launchEmulator() {
 		//Stay in Emulator During Operation
 		pNesX_Main();
 
-#if !STANDALONE
 		//Save Its SaveRAM
 		if (SRAM_Enabled) {
 			SaveSRAM();
 		}
-#endif
 
 		if (recordingMode == RECORDING_MODE_ENABLED) {
 			printf("Uploading Recording\n");
@@ -668,10 +658,10 @@ int main() {
 	printf("Initializing Controllers and VMUs\n");	
 	initialize_controllers();
 
-	printf("Initializing VMUs\n");
-	for (uint8 i = 0; i < numVMUs; i++) {
-		draw_VMU_icon(VMUs[i], vmu_screen_normal);
-	}
+	// printf("Initializing VMUs\n");
+	// for (uint8 i = 0; i < numVMUs; i++) {
+	// 	draw_VMU_icon(VMUs[i], vmu_screen_normal);
+	// }
 
 	printf("Initializing User Options\n");
 	initializeUserOptions();
@@ -824,6 +814,9 @@ int main() {
 }
 
 void pNesX_LoadFrame() {
+
+	if (numEmulationFrames < 20) return;
+
 	startProfiling(3);
 
 	pvr_poly_hdr_t my_pheader;
@@ -871,7 +864,7 @@ void pNesX_LoadFrame() {
 	pvr_prim(&my_vertex, sizeof(my_vertex));
 
 	pvr_list_finish();
-	
+
 #if !STANDALONE
 	if (options.opt_ShowFrameRate) {
 		pvr_list_begin(PVR_LIST_TR_POLY);
@@ -1049,9 +1042,9 @@ __attribute__ ((hot)) void handleController(cont_state_t* state, uint32* bitflag
 	handleButton(bitflags, CONTROLLER_BUTTON_B, controllerIndex, state, MODE_BUTTONS, CONT_Y);
 
 	// HACK(ross): Halt the emulator with the B button:
-	if (state->buttons & CONT_B) {
-		HALT = 1;	
-	}
+	// if (state->buttons & CONT_B) {
+	// 	HALT = 1;	
+	// }
 }
 
 __attribute__ ((hot)) void pNesX_PadState(uint32 *pdwPad1, uint32 *pdwPad2, uint32* ExitCount) {	

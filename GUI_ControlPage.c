@@ -11,7 +11,6 @@
 #include "macros.h"
 
 #include "pNesX_System_DC.h"
-#include "settings.h"
 
 char Player_1_Option_A_Buffer[50];
 char Player_1_Option_B_Buffer[50];
