@@ -20,6 +20,7 @@
 /*===================================================================*/
 
 #define STANDALONE 1
+#define DATA_PATH "/pc/"
 
 /*-------------------------------------------------------------------*/
 /*  Include files                                                    */
@@ -538,40 +539,71 @@ void initVQTextures() {
 }
 
 bool checkForAutoROM() {
-	bool autoromPresent = false;
-	memset(szRomPath, 0, 256);
-	file_t autoromFileHandle = fs_open("/cd/autorom.txt", O_RDONLY);
-	if (autoromFileHandle != -1) {
-		printf("AutoROM: autorom.txt found\n");
-		if (fs_read(autoromFileHandle, szRomPath, 256) > 0) {
-			for (int i = 0; i < strlen(szRomPath); i++) {
-				if (szRomPath[i] == '\n') {
-					szRomPath[i] = '\0';
-				}
-			}
-			printf("AutoROM: file specified [%s]\n", szRomPath);
-			fs_close(autoromFileHandle);
 
-			file_t romFileHandle = fs_open(szRomPath, O_RDONLY);
-			if (romFileHandle != -1){
-				struct stat fileStat;
-				if (fs_fstat(romFileHandle, &fileStat) == 0) {
-					printf("AutoROM: detected size [%lu]\n", fileStat.st_size);
-					RomSize = fileStat.st_size;
-					autoromPresent = true;
-				} else {
-					printf("AutoROM: Unable to detect size of file\n");
-				}
-				fs_close(romFileHandle);
-			} else {
-				printf("AutoROM: unable to load specified rom\n");
-			}
-		}
-		fs_close(autoromFileHandle);
-	} else {
+	char romPath[sizeof(szRomPath)];
+	memset(romPath, 0, sizeof(romPath));
+
+	printf("Looking for autorom in %s\n", DATA_PATH "autorom.txt");
+	file_t autoromFileHandle = fs_open(DATA_PATH "autorom.txt", O_RDONLY);
+
+	if (autoromFileHandle == -1) {
 		printf("autorom.txt not present\n");
+		return false;
 	}
-	return autoromPresent;
+
+	printf("AutoROM: autorom.txt found\n");
+	size_t const readResult = fs_read(autoromFileHandle, romPath, sizeof(romPath) - 1);
+	fs_close(autoromFileHandle);
+
+	if (readResult <= 0) {
+		printf("AutoROM: unable to read the contents of the autorom file\n");
+		return false;
+	}
+	
+	// We only care about the first line:
+	for (int i = 0; i < strlen(romPath); i++) {
+		if (romPath[i] == '\n') {
+			romPath[i] = '\0';
+		}
+	}
+
+	if (romPath[0] != '/') {
+
+		// If a relative path is specified, append our DATA_PATH to the buffer first:
+		printf("AutoROM: relative file path specified [%s]\n", romPath);
+
+		if (sizeof(szRomPath) < sizeof(DATA_PATH) + strlen(romPath)) {
+			printf("AutoROM: Error! Internal buffer too small for specified path");
+			return false;
+		}
+
+		memset(szRomPath, 0, sizeof(szRomPath));
+		memcpy(szRomPath, DATA_PATH, sizeof(DATA_PATH) - 1);
+		strcpy(szRomPath + sizeof(DATA_PATH) - 1, romPath);
+				
+		printf("AutoROM: full path will be [%s]\n", szRomPath);
+
+	} else {
+
+		// If absolute path is specified, copy verbatim:
+		memset(szRomPath, 0, sizeof(szRomPath));
+		strcpy(szRomPath, romPath);
+		printf("AutoROM: absolute file path specified [%s]\n", szRomPath);
+	}
+
+	file_t romFileHandle = fs_open(szRomPath, O_RDONLY);
+	if (romFileHandle == -1) {
+		printf("AutoROM: Unable to open ROM file to detect file size");
+		return false;
+	}
+		
+	fs_seek(romFileHandle, 0, SEEK_END);
+	RomSize = fs_tell(romFileHandle);
+	fs_seek(romFileHandle, 0, SEEK_SET);
+	fs_close(romFileHandle);
+
+	printf("AutoROM: detected size [%lu]\n", RomSize);
+	return true;
 }
 
 void launchEmulator() {
@@ -659,7 +691,7 @@ int main() {
 
 	// Load palette
 	printf("Initializing NES Palette\n");
-	loadPalette("/cd/nes.pal");
+	loadPalette(DATA_PATH "nes.pal");
 
 	printf("Initializing VQ Textures\n");
 	initVQTextures();
@@ -700,7 +732,7 @@ int main() {
 	opt_SRAM = default_SRAM;
 
 	printf("Loading VMU icon\n");
-	if (load_vmu_lcd_bitmap("/cd/vmu_image.bmp") == -1) {
+	if (load_vmu_lcd_bitmap(DATA_PATH "vmu_image.bmp") == -1) {
 		printf("Unable to load VMU bitmap icon\n");
 		return 1;
 	}
@@ -713,7 +745,7 @@ int main() {
 #if STANDALONE
 
 	if (AutoROM == false) {
-		fprintf(stderr, "FATAL ERROR: No autorom.txt file present in romdisk. This is required for standalone mode.");
+		fprintf(stderr, "FATAL ERROR: Unable to load autorom. This is required for standalone mode.");
 		return 1;
 	}
 
@@ -930,6 +962,9 @@ int pNesX_ReadRom (const char *filepath, uint32 filesize) {
 }
 
 void pNesX_LoadFrame() {
+
+	if (numEmulationFrames < 20) return;
+	
 	startProfiling(3);
 
 	pvr_poly_hdr_t my_pheader;
@@ -977,6 +1012,10 @@ void pNesX_LoadFrame() {
 	pvr_prim(&my_vertex, sizeof(my_vertex));
 
 	pvr_list_finish();
+
+	// if (numEmulationFrames % 300 == 0) {
+	// 	printf("%.0f fps\n", frames_per_second);
+	// }
 
 #if !STANDALONE
 	if (opt_ShowFrameRate) {
@@ -1151,8 +1190,13 @@ void handleController(cont_state_t* state, uint32* bitflags, uint8 controllerInd
 	handleButton(bitflags, CONTROLLER_BUTTON_RIGHT, controllerIndex, state, MODE_BUTTONS, CONT_DPAD_RIGHT);
 
 	// HACK(ross): For Storied Sword, remap Y to UP + B for secondary weapon:
-	// handleButton(bitflags, CONTROLLER_BUTTON_UP, controllerIndex, state, MODE_BUTTONS, CONT_Y);
-	// handleButton(bitflags, CONTROLLER_BUTTON_B, controllerIndex, state, MODE_BUTTONS, CONT_Y);
+	handleButton(bitflags, CONTROLLER_BUTTON_UP, controllerIndex, state, MODE_BUTTONS, CONT_Y);
+	handleButton(bitflags, CONTROLLER_BUTTON_B, controllerIndex, state, MODE_BUTTONS, CONT_Y);
+
+	// HACK(ross): Halt the emulator with the B button:
+	if (state->buttons & CONT_B) {
+		HALT = 1;	
+	}
 }
 
 void pNesX_PadState(uint32 *pdwPad1, uint32 *pdwPad2, uint32* ExitCount) {	

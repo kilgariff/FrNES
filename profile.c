@@ -65,11 +65,19 @@ void printProfilingReport() {
     printf("****************** PROFILING REPORT *****************\n");
     printf("Over [%lu] Frames\n", numEmulationFrames);
     printf("------------------ Execution Time -------------------\n");
+
+    float totalNS = 0;
+
     for (uint32 i = 0; i < numProfilingFunctions; i++) {
         printf("%s: %.2f nanoseconds per frame\n", 
             profilingInformation[i].functionName, 
             (float)profilingInformation[i].nanoseconds / (float)numEmulationFrames);
+
+        totalNS += (float)profilingInformation[i].nanoseconds / (float)numEmulationFrames;
     }
+
+    printf("Total nanoseconds per frame: %.2f (%.2fms)\n", totalNS, totalNS / 1000000.f);
+
     printf("---------------- Operand Cache Misses ---------------\n");    
     for (uint32 i = 0; i < numProfilingFunctions; i++) {
         printf("%s: %.2f operand cache misses per frame\n", 

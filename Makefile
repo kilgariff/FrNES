@@ -68,7 +68,7 @@ SRCS = \
 	settings.c
 
 ASMS = 
-OBJS = $(SRCS:.c=.o) $(ASMS:.s=.o) romdisk.o 
+OBJS = $(SRCS:.c=.o) $(ASMS:.s=.o) romdisk.o
 PROJECTNAME = FrNES
 ELFFILE = $(PROJECTNAME).elf
 BINFILE = $(PROJECTNAME).bin
@@ -142,8 +142,8 @@ cdi: release | prepcdidir
 	( cat $(CDIIPBIN); dd if=$(CDIISO) bs=2048 skip=16 ) > $(CDIBOOTSTRAPISO)
 	cdi4dc $(CDIBOOTSTRAPISO) $(CDIFILE)
 
-run: $(DBGEXE)
-	$(KOS_LOADER) $(DBGEXE) -t $(DREAMCAST_IP) -c $(PC_FS_ROOT)
+run: $(RELEXE)
+	$(KOS_LOADER) $(RELEXE) -t $(DREAMCAST_IP) -c $(PC_FS_ROOT)
 
 clean:
 	rm -rf debug release cdi iso romdisk.*
